@@ -19,7 +19,7 @@ public abstract class BaseSystemUtilTask
 {
 	// static
 	
-	private static final Logger _Logger =
+	public static final Logger _Logger =
 		Logger.getLogger(BaseSystemUtilTask.class.getName());
 	
 	
@@ -33,6 +33,12 @@ public abstract class BaseSystemUtilTask
 	public BaseSystemUtilTask(String name, int typeID)
 	{
 		super();
+
+		if (name != null) {
+			this.name = name;
+		}
+	
+		this.typeID = typeID;
 	}
 	
 	
@@ -40,7 +46,7 @@ public abstract class BaseSystemUtilTask
 	
 	public String getName()
 	{
-		return null;
+		return this.name;
 	}
 	
 	/**
@@ -50,7 +56,7 @@ public abstract class BaseSystemUtilTask
 	 */
 	public int getTypeID()
 	{
-		return 0;
+		return this.typeID;
 	}
 	
 	/**
