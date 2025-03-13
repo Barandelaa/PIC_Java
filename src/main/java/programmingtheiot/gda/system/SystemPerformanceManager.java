@@ -41,6 +41,9 @@ public class SystemPerformanceManager
 
 	private Runnable taskRunner = null;
 	private boolean isStarted = false;
+
+	private String locationID = ConfigConst.NOT_SET;
+	private IDataMessageListener dataMsgListener = null;
 	
 	// constructors
 	public SystemPerformanceManager()
@@ -60,6 +63,9 @@ public class SystemPerformanceManager
 		this.taskRunner = () -> {
 			this.handleTelemetry();
 		};
+		this.locationID =
+		ConfigUtil.getInstance().getProperty(
+		ConfigConst.GATEWAY_DEVICE, ConfigConst.LOCATION_ID_PROP, ConfigConst.NOT_SET);
 
 	}
 	
@@ -71,10 +77,23 @@ public class SystemPerformanceManager
 		float memUtil = this.sysMemUtilTask.getTelemetryValue();
 	
 		_Logger.fine("CPU utilization: " + cpuUtil + ", Mem utilization: " + memUtil);
+
+		SystemPerformanceData spd = new SystemPerformanceData();
+		spd.setLocationID(this.locationID);
+		spd.setCpuUtilization(cpuUtil);
+		spd.setMemoryUtilization(memUtil);
+
+		if (this.dataMsgListener != null) {
+			this.dataMsgListener.handleSystemPerformanceMessage(
+				ResourceNameEnum.GDA_SYSTEM_PERF_MSG_RESOURCE, spd);
+		}
 	}
 	
 	public void setDataMessageListener(IDataMessageListener listener)
 	{
+		if (listener != null) {
+			this.dataMsgListener = listener;
+		}
 	}
 	
 	public boolean startManager()
