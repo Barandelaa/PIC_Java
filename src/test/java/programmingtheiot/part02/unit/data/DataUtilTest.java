@@ -45,6 +45,8 @@ public class DataUtilTest
 	
 	// test methods
 	
+			
+			
 	@Test
 	public void testActuatorDataToJsonAndBack()
 	{
@@ -67,6 +69,7 @@ public class DataUtilTest
 		assertTrue(data.getCommand() == data2.getCommand());
 		assertTrue(data.getValue() == data2.getValue());
 	}
+	
 	
 	@Test
 	public void testSensorDataToJsonAndBack()
