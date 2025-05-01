@@ -173,51 +173,105 @@ public class DeviceDataManager implements IDataMessageListener
 	@Override
 	public boolean handleActuatorCommandRequest(ResourceNameEnum resourceName, ActuatorData data)
 	{
-		return false;
-	}
-
-	@Override
-	public boolean handleIncomingMessage(ResourceNameEnum resourceName, String msg)
-	{
-		if (msg != null) {
-			_Logger.info("Handling incoming message: " + msg);
-
+		if (data != null) {
+			// NOTE: Feel free to update this log message for debugging and monitoring
+			_Logger.log(
+				Level.FINE,
+				"Actuator request received: {0}. Message: {1}",
+				new Object[] {resourceName.getResourceName(), Integer.valueOf((data.getCommand()))});
 	
-			return false;
+			if (data.hasError()) {
+				_Logger.warning("Error flag set for ActuatorData instance.");
+			}
+	
+			// TODO: retrieve this from config file
+			int qos = ConfigConst.DEFAULT_QOS;
+	
+			// TODO: you may want to implement some analysis logic here or
+			// in a separate method to determine how best to handle incoming
+			// ActuatorData before calling this.sendActuatorCommandtoCda()
+	
+			// Recall that this private method was implement in Lab Module 10
+			// See PIOT-GDA-10-003 for details
+			this.sendActuatorCommandtoCda(resourceName, data);
+	
+			return true;
 		} else {
 			return false;
 		}
 	}
 
 	@Override
+	public boolean handleIncomingMessage(ResourceNameEnum resourceName, String msg)
+	{
+		if (resourceName != null && msg != null) {
+			try {
+				if (resourceName == ResourceNameEnum.CDA_ACTUATOR_CMD_RESOURCE) {
+					_Logger.info("Handling incoming ActuatorData message: " + msg);
+	
+					// NOTE: it may seem wasteful to convert to ActuatorData and back while
+					// the JSON data is already available; however, this provides a validation
+					// scheme to ensure the data is actually an 'ActuatorData' instance
+					// prior to sending off to the CDA
+					ActuatorData ad = DataUtil.getInstance().jsonToActuatorData(msg);
+					String jsonData = DataUtil.getInstance().actuatorDataToJson(ad);
+	
+					if (this.mqttClient != null) {
+						// TODO: retrieve the QoS level from the configuration file
+						_Logger.fine("Publishing data to MQTT broker: " + jsonData);
+						return this.mqttClient.publishMessage(resourceName, jsonData, 0);
+					}
+	
+					// TODO: If the GDA is hosting a CoAP server (or a CoAP client that
+					// will connect to the CDA's CoAP server), you can add that logic here
+					// in place of the MQTT client or in addition
+	
+				} else {
+					_Logger.warning("Failed to parse incoming message. Unknown type: " + msg);
+	
+					return false;
+				}
+			} catch (Exception e) {
+				_Logger.log(Level.WARNING, "Failed to process incoming message for resource: " + resourceName, e);
+			}
+		} else {
+			_Logger.warning("Incoming message has no data. Ignoring for resource: " + resourceName);
+		}
+	
+		return false;
+	}
+
+	@Override
 	public boolean handleSensorMessage(ResourceNameEnum resourceName, SensorData data)
 	{
-		if (data !=null) {
-			_Logger.fine("Handling sensor message: " +data.getName());
-			
+		if (data != null) {
+			_Logger.fine("Handling sensor message: " + data.getName());
+	
 			if (data.hasError()) {
-			_Logger.warning("Error flag set for SensorData instance.");
-					}
-			
-			String jsonData =DataUtil.getInstance().sensorDataToJson(data);
-			
-			_Logger.fine("JSON [SensorData] -> " +jsonData);
-			
+				_Logger.warning("Error flag set for SensorData instance.");
+			}
+	
+			String jsonData = DataUtil.getInstance().sensorDataToJson(data);
+	
+			_Logger.fine("JSON [SensorData] -> " + jsonData);
+	
 			// TODO: retrieve this from config file
-			int qos =ConfigConst.DEFAULT_QOS;
-			
-			if (this.enablePersistenceClient &&this.persistenceClient !=null) {
-			this.persistenceClient.storeData(resourceName.getResourceName(),qos,data);
-					}
-			
-			this.handleIncomingDataAnalysis(resourceName,data);
-			
-			this.handleUpstreamTransmission(resourceName,jsonData,qos);
-			
+			int qos = ConfigConst.DEFAULT_QOS;
+	
+			// NOTE: Your code may not have a persistenceClient reference or
+			// a enablePersistenceClient boolean
+			if (this.enablePersistenceClient && this.persistenceClient != null) {
+				this.persistenceClient.storeData(resourceName.getResourceName(), qos, data);
+			}
+	
+			this.handleIncomingDataAnalysis(resourceName, data);
+	
+			this.handleUpstreamTransmission(resourceName, jsonData, qos);
+	
 			return true;
-				}else {
+		} else {
 			return false;
-				}
+		}
 	}
 
 	@Override
@@ -229,6 +283,7 @@ public class DeviceDataManager implements IDataMessageListener
 			if (data.hasError()) {
 				_Logger.warning("Error flag set for SystemPerformanceData instance.");
 			}
+	
 	
 			return true;
 		} else {
