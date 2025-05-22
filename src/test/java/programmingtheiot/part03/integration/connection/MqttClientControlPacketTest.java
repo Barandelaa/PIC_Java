@@ -63,21 +63,50 @@ public class MqttClientControlPacketTest
 	@Test
 	public void testConnectAndDisconnect()
 	{
-		// TODO: implement this test
+			// Connect to the broker to generate CONNECT and CONNACK packets
+			assertTrue(this.mqttClient.connectClient());
+
+			// Disconnect from the broker to generate DISCONNECT packet
+			assertTrue(this.mqttClient.disconnectClient());
 	}
 	
 	@Test
 	public void testServerPing()
 	{
-		// TODO: implement this test
+			// Connect to the broker
+			assertTrue(this.mqttClient.connectClient());
+
+			// Wait for the keep-alive interval to generate PINGREQ and PINGRESP packets
+			try {
+				Thread.sleep(5000); // Adjust this based on the keep-alive interval
+			} catch (InterruptedException e) {
+				_Logger.warning("Interrupted while waiting for PINGREQ and PINGRESP packets.");
+			}
+
+			// Disconnect from the broker
+			assertTrue(this.mqttClient.disconnectClient());	
 	}
 	
 	@Test
 	public void testPubSub()
 	{
-		// TODO: implement this test
-		// 
-		// IMPORTANT: be sure to use QoS 1 and 2 to see ALL control packets
+			// Connect to the broker
+			assertTrue(this.mqttClient.connectClient());
+
+			// Subscribe to a topic to generate SUBSCRIBE and SUBACK packets
+			assertTrue(this.mqttClient.subscribeToTopic(ResourceNameEnum.GDA_MGMT_STATUS_MSG_RESOURCE, 1));
+
+			// Publish a message with QoS 1 to generate PUBLISH and PUBACK packets
+			assertTrue(this.mqttClient.publishMessage(ResourceNameEnum.GDA_MGMT_STATUS_MSG_RESOURCE, "Test message QoS 1", 1));
+
+			// Publish a message with QoS 2 to generate PUBLISH, PUBREC, PUBREL, and PUBCOMP packets
+			assertTrue(this.mqttClient.publishMessage(ResourceNameEnum.GDA_MGMT_STATUS_MSG_RESOURCE, "Test message QoS 2", 2));
+
+			// Unsubscribe from the topic to generate UNSUBSCRIBE and UNSUBACK packets
+			assertTrue(this.mqttClient.unsubscribeFromTopic(ResourceNameEnum.GDA_MGMT_STATUS_MSG_RESOURCE));
+
+			// Disconnect from the broker
+			assertTrue(this.mqttClient.disconnectClient());
 	}
 	
 }
