@@ -81,16 +81,40 @@ public class UpdateSystemPerformanceResourceHandler extends CoapResource {
     @Override
 	public void handleDELETE(CoapExchange context)
 	{
+		try {
+			_Logger.info("DELETE request received for resource: " + super.getName());
+			context.accept();
+			context.respond(ResponseCode.DELETED, "DELETE request handled.");
+		} catch (Exception e) {
+			_Logger.severe("Exception occurred while handling DELETE request: " + e.getMessage());
+			context.respond(ResponseCode.INTERNAL_SERVER_ERROR, "Error handling DELETE request.");
+		}
 	}
 	
 	@Override
 	public void handleGET(CoapExchange context)
 	{
+		try {
+			_Logger.info("GET request received for resource: " + super.getName());
+			context.accept();
+			context.respond(ResponseCode.CONTENT, "GET request handled.");
+		} catch (Exception e) {
+			_Logger.severe("Exception occurred while handling GET request: " + e.getMessage());
+			context.respond(ResponseCode.INTERNAL_SERVER_ERROR, "Error handling GET request.");
+		}	
 	}
 	
 	@Override
 	public void handlePOST(CoapExchange context)
 	{
+		try {
+			_Logger.info("POST request received for resource: " + super.getName());
+			context.accept();
+			context.respond(ResponseCode.CHANGED, "POST request handled.");
+		} catch (Exception e) {
+			_Logger.severe("Exception occurred while handling POST request: " + e.getMessage());
+			context.respond(ResponseCode.INTERNAL_SERVER_ERROR, "Error handling POST request.");
+		}
 	}
 
     
