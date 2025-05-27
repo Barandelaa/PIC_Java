@@ -12,7 +12,7 @@
 #
 [Cloud.GatewayService]
 credFile       = /home/daniel/PIC/PIC_Java/cred/UbidotsCloudCred.props
-certFile       = /home/daniel/PIC/PIC_Java/cred/UbidotsCloudCert.props
+certFile       = /home/daniel/PIC/PIC_Java/cred/UbidotsCloudCert.pem
 host           = industrial.api.ubidots.com
 port           = 1883
 securePort     = 8883
