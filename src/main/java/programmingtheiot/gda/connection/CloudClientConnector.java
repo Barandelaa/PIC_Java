@@ -100,6 +100,7 @@ public class CloudClientConnector implements ICloudClient, IConnectionListener
 		_Logger.info("Handling CSP subscriptions and device topic provisioninig...");
 
 		LedEnablementMessageListener ledListener = new LedEnablementMessageListener(this.dataMsgListener);
+		AlarmEnablementMessageListener alarmListener = new AlarmEnablementMessageListener(this.dataMsgListener);
 
 		// topic may not exist yet, so create a 'response' actuation event with invalid value -
 		// this will create the relevant topic if it doesn't yet exist, which ensures
@@ -116,6 +117,19 @@ public class CloudClientConnector implements ICloudClient, IConnectionListener
 		this.publishMessageToCloud(ledTopic, adJson);
 
 		this.mqttClient.subscribeToTopic(ledTopic, this.qosLevel, ledListener);
+
+		// Configurar la alarma de manera similar
+		ActuatorData alarmData = new ActuatorData();
+		alarmData.setAsResponse();
+		alarmData.setName(ConfigConst.ALARM_ACTUATOR_NAME);
+		alarmData.setValue((float) -1.0);
+
+		String alarmTopic = createTopicName(alarmListener.getResource().getDeviceName(), alarmData.getName());
+		String alarmJson = DataUtil.getInstance().actuatorDataToJson(alarmData);
+
+		this.publishMessageToCloud(alarmTopic, alarmJson);
+
+		this.mqttClient.subscribeToTopic(alarmTopic, this.qosLevel, alarmListener);
 	}
 
 	public void onDisconnect()
@@ -151,9 +165,14 @@ public class CloudClientConnector implements ICloudClient, IConnectionListener
 			jsonBuilder.append(data.getSensorType());
 			jsonBuilder.append("\",\"description\":\"");
 			jsonBuilder.append(data.getDescription());
-			jsonBuilder.append("\"}}");
+			jsonBuilder.append("\",\"name\":\"");
+			jsonBuilder.append(data.getName());
+			jsonBuilder.append("\",\"typeID\":");
+			jsonBuilder.append(data.getTypeID());
+			jsonBuilder.append("}}");
 			
 			String payload = jsonBuilder.toString();
+			_Logger.info("Sending sensor data to Ubidots: " + payload);
 			return publishMessageToCloud(resource, data.getName(), payload);
 		}
 		return false;
@@ -277,36 +296,17 @@ public class CloudClientConnector implements ICloudClient, IConnectionListener
 	
 	private boolean publishMessageToCloud(String topicName, String payload) {
 		try {
-			_Logger.finest("Publishing payload value(s) to CSP: " + topicName);
-	
+			_Logger.info("Publishing payload to topic: " + topicName);
+			_Logger.info("Payload content: " + payload);
+
 			this.mqttClient.publishMessage(topicName, payload.getBytes(), this.qosLevel);
-	
-			// NOTE: Depending on the cloud service, it may be necessary to 'throttle'
-			// the published messages by limiting to, for example, no more than one
-			// per second. While there are a variety of ways to accomplish this,
-			// briefly described below are two techniques that may be worth considering
-			// if this is a limitation you need to handle in your code:
-			//
-			// 1) Add an artificial delay after the call to this.mqttClient.publishMessage().
-			//    This can be implemented by sleeping for up to a second after the call.
-			//    However, it can also adversely affect the program flow, as this sleep
-			//    will block DeviceDataManager, which invoked one of the sendEdgeDataToCloud()
-			//    methods that led to this call, and may negatively impact your application.
-			//
-			// 2) Implement a Queue which can store both the payload and target topic, and
-			//    add a scheduler to pop the oldest message off the Queue (when not empty)
-			//    at a regular interval (for example, once per second), and then invoke the
-			//    this.mqttClient.publishMessage() method.
-			//
-			// Both approaches require thoughtful design considerations of course, and your
-			// requirements may demand an alternative approach (or none at all if throttling
-			// isn't a concern). Design and implementation details are left up to you.
-	
+
 			return true;
 		} catch (Exception e) {
 			_Logger.warning("Failed to publish message to CSP: " + topicName);
+			_Logger.warning("Error details: " + e.getMessage());
 		}
-	
+
 		return false;
 	}
 
@@ -415,6 +415,55 @@ public class CloudClientConnector implements ICloudClient, IConnectionListener
 			_Logger.warning("Failed to convert message payload to ActuatorData.");
 		}
 	}
+	}
+
+	private class AlarmEnablementMessageListener implements IMqttMessageListener
+	{
+		private IDataMessageListener dataMsgListener = null;
+		private ResourceNameEnum resource = ResourceNameEnum.CDA_ACTUATOR_CMD_RESOURCE;
+		private int    typeID   = ConfigConst.ALARM_ACTUATOR_TYPE;
+		private String itemName = ConfigConst.ALARM_ACTUATOR_NAME;
+
+		AlarmEnablementMessageListener(IDataMessageListener dataMsgListener)
+		{
+			this.dataMsgListener = dataMsgListener;
+		}
+
+		public ResourceNameEnum getResource()
+		{
+			return this.resource;
+		}
+
+		@Override
+		public void messageArrived(String topic, MqttMessage message) throws Exception
+		{
+			if (message != null) {
+				String payload = new String(message.getPayload());
+				_Logger.info("Received message payload: " + payload);
+
+				ActuatorData actuatorData = DataUtil.getInstance().jsonToActuatorData(payload);
+
+				if (actuatorData != null) {
+					_Logger.info("ActuatorData object created from JSON payload: " + actuatorData.getName());
+
+					if (actuatorData.getTypeID() == this.typeID) {
+						_Logger.info("Processing actuator command for " + this.itemName);
+
+						if (this.dataMsgListener != null) {
+							this.dataMsgListener.handleActuatorCommandRequest(this.resource, actuatorData);
+						} else {
+							_Logger.warning("No listener available for processing actuator command. Ignoring.");
+						}
+					} else {
+						_Logger.warning("Actuator command type ID doesn't match " + this.itemName + ". Ignoring: " + actuatorData.getTypeID());
+					}
+				} else {
+					_Logger.warning("Failed to create ActuatorData object from JSON payload: " + payload);
+				}
+			} else {
+				_Logger.warning("Received null message. Ignoring.");
+			}
+		}
 	}
 
 }

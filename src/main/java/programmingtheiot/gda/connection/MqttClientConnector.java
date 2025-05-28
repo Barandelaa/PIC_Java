@@ -27,6 +27,9 @@ import programmingtheiot.common.ConfigConst;
 import programmingtheiot.common.ConfigUtil;
 import programmingtheiot.common.IDataMessageListener;
 import programmingtheiot.common.ResourceNameEnum;
+import programmingtheiot.data.DataUtil;
+import programmingtheiot.data.SensorData;
+import programmingtheiot.data.SystemPerformanceData;
 import java.io.File;
 import javax.net.ssl.SSLSocketFactory;
 
@@ -358,8 +361,32 @@ public class MqttClientConnector implements IPubSubClient, MqttCallbackExtended
 	@Override
 	public void messageArrived(String topic, MqttMessage msg) throws Exception
 	{
-		// TODO: Logging level may need to be adjusted to reduce output in log file / console
 		_Logger.info("MQTT message arrived on topic: '" + topic + "'");
+		
+		if (this.dataMsgListener != null) {
+			String payload = new String(msg.getPayload());
+			_Logger.info("Message payload: " + payload);
+			
+			// Determinar el tipo de recurso basado en el tópico
+			ResourceNameEnum resource = null;
+			if (topic.contains(ConfigConst.SENSOR_MSG)) {
+				resource = ResourceNameEnum.CDA_SENSOR_MSG_RESOURCE;
+				// Convertir el payload a SensorData
+				SensorData sensorData = DataUtil.getInstance().jsonToSensorData(payload);
+				if (sensorData != null) {
+					_Logger.info("Processing sensor data: " + sensorData.getName());
+					this.dataMsgListener.handleSensorMessage(resource, sensorData);
+				}
+			} else if (topic.contains(ConfigConst.SYSTEM_PERF_MSG)) {
+				resource = ResourceNameEnum.CDA_SYSTEM_PERF_MSG_RESOURCE;
+				// Convertir el payload a SystemPerformanceData
+				SystemPerformanceData sysPerfData = DataUtil.getInstance().jsonToSystemPerformanceData(payload);
+				if (sysPerfData != null) {
+					_Logger.info("Processing system performance data");
+					this.dataMsgListener.handleSystemPerformanceMessage(resource, sysPerfData);
+				}
+			}
+		}
 	}
 
 	
